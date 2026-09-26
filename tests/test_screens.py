@@ -204,8 +204,10 @@ def test_control_server_switches_the_carousel(display: Display) -> None:
         assert get("/") == {"status": "on"}
         assert get("/off") == {"status": "off"}
         assert not carousel.on
-        with pytest.raises(urllib.error.HTTPError):
+        with pytest.raises(urllib.error.HTTPError) as not_found:
             get("/reboot")
+        assert not_found.value.code == 404
+        not_found.value.close()
     finally:
         server.stop()
 
