@@ -4,6 +4,7 @@ Readings about the machine the display is attached to.
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import shutil
 import socket
@@ -67,16 +68,32 @@ def primary_ip_address() -> str | None:
     """
     Return the address this machine uses to reach other networks.
 
-    No packets are sent: connecting a UDP socket only picks a route.
-    Returns ``None`` when there is no route.
+    No packets are sent: connecting a UDP socket only picks a route. On
+    a network with no default route, fall back to the first IPv4
+    address on an interface that's up. Returns ``None`` if there's
+    neither.
     """
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
         try:
             # TEST-NET-1 (RFC 5737), so nothing real is contacted.
             probe.connect(("192.0.2.1", 9))
         except OSError:
-            return None
+            return _interface_ip_address()
         return probe.getsockname()[0]
+
+
+def _interface_ip_address() -> str | None:
+    interfaces = psutil.net_if_stats()
+    for name, addresses in psutil.net_if_addrs().items():
+        if name not in interfaces or not interfaces[name].isup:
+            continue
+        for address in addresses:
+            if address.family != socket.AF_INET:
+                continue
+            ip = ipaddress.IPv4Address(address.address)
+            if not (ip.is_loopback or ip.is_link_local):
+                return address.address
+    return None
 
 
 def cpu_temperature() -> float | None:

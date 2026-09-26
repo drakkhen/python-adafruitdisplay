@@ -45,11 +45,59 @@ def test_temperature_is_none_without_a_sensor(monkeypatch: pytest.MonkeyPatch) -
     assert stats.cpu_temperature() is None
 
 
-def test_ip_address_is_none_without_a_route(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ip_address_is_none_without_a_route_or_interface(monkeypatch: pytest.MonkeyPatch) -> None:
     class NoRoute(socket.socket):
         def connect(self, address: object) -> None:
             raise OSError("Network is unreachable")
 
     monkeypatch.setattr(stats.socket, "socket", NoRoute)
+    monkeypatch.setattr(stats.psutil, "net_if_addrs", lambda: {})
+
+    assert stats.primary_ip_address() is None
+
+
+def test_ip_address_falls_back_to_an_interface_without_a_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class NoRoute(socket.socket):
+        def connect(self, address: object) -> None:
+            raise OSError("Network is unreachable")
+
+    def addr(family: int, address: str) -> types.SimpleNamespace:
+        return types.SimpleNamespace(family=family, address=address)
+
+    monkeypatch.setattr(stats.socket, "socket", NoRoute)
+    monkeypatch.setattr(
+        stats.psutil,
+        "net_if_addrs",
+        lambda: {
+            "lo": [addr(socket.AF_INET, "127.0.0.1")],
+            "wlan0": [addr(socket.AF_INET, "169.254.10.20")],
+            "eth0": [addr(socket.AF_INET6, "fe80::1"), addr(socket.AF_INET, "192.168.50.2")],
+        },
+    )
+    monkeypatch.setattr(
+        stats.psutil,
+        "net_if_stats",
+        lambda: {name: types.SimpleNamespace(isup=True) for name in ("lo", "wlan0", "eth0")},
+    )
+
+    assert stats.primary_ip_address() == "192.168.50.2"
+
+
+def test_interfaces_that_are_down_are_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
+    class NoRoute(socket.socket):
+        def connect(self, address: object) -> None:
+            raise OSError("Network is unreachable")
+
+    monkeypatch.setattr(stats.socket, "socket", NoRoute)
+    monkeypatch.setattr(
+        stats.psutil,
+        "net_if_addrs",
+        lambda: {"eth0": [types.SimpleNamespace(family=socket.AF_INET, address="10.1.1.1")]},
+    )
+    monkeypatch.setattr(
+        stats.psutil, "net_if_stats", lambda: {"eth0": types.SimpleNamespace(isup=False)}
+    )
 
     assert stats.primary_ip_address() is None
