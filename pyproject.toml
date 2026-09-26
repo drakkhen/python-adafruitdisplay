@@ -29,6 +29,9 @@ classifiers = [
 pi = [
     "adafruit-blinka>=8",
     "adafruit-circuitpython-ssd1306>=2.12",
+    # Blinka imports RPi.GPIO on a Pi 1-4 but doesn't depend on it.
+    # (A Pi 5 needs lgpio instead.)
+    "RPi.GPIO>=0.7.1; platform_machine == 'armv7l' or platform_machine == 'armv6l' or platform_machine == 'aarch64'",
 ]
 dev = [
     "pytest>=8",
