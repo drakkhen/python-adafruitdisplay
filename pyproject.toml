@@ -7,8 +7,8 @@ name = "adafruitdisplay"
 version = "0.2.0"
 description = "Draw text and status screens on an SSD1306 OLED such as the Adafruit PiOLED"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "MIT AND OFL-1.1"
+license-files = ["LICENSE", "src/adafruitdisplay/fonts/OFL.txt"]
 requires-python = ">=3.11"
 dependencies = [
     "pillow>=10.1",

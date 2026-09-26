@@ -46,6 +46,12 @@ saved as an image.
 Text uses the bundled Silkscreen pixel font by Jason Kottke, which is sharpest
 at multiples of 8 pixels.
 
+## License
+
+The code is MIT licensed (see `LICENSE`). The Silkscreen fonts are
+Copyright (c) 2001 Jason Kottke and licensed under the SIL Open Font License
+1.1, included as `src/adafruitdisplay/fonts/OFL.txt`.
+
 ## Development
 
 ```sh
