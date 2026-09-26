@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "adafruitdisplay"
-version = "0.2.0"
+version = "0.3.0"
 description = "Draw text and status screens on an SSD1306 OLED such as the Adafruit PiOLED"
 readme = "README.md"
 license = "MIT AND OFL-1.1"
@@ -36,7 +36,11 @@ dev = [
 ]
 
 [project.scripts]
-adafruitdisplay-stats = "adafruitdisplay.cli:main"
+oled-display = "adafruitdisplay.cli:main"
+
+[project.entry-points."adafruitdisplay.screens"]
+identity = "adafruitdisplay.screens:IdentityScreen"
+system = "adafruitdisplay.screens:SystemScreen"
 
 [tool.ruff]
 # PEP 8 allows up to 99 characters when a project agrees on it.

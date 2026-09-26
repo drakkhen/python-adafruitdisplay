@@ -8,6 +8,7 @@ import ipaddress
 import os
 import shutil
 import socket
+import time
 from dataclasses import dataclass
 
 import psutil
@@ -24,12 +25,14 @@ class SystemStats:
 
     hostname: str
     ip_address: str | None
-    load_average: float
+    # 1, 5 and 15 minute load averages.
+    load_averages: tuple[float, float, float]
     temperature: float | None
     memory_used: int
     memory_total: int
     disk_used: int
     disk_total: int
+    uptime: float
 
     @property
     def memory_percent(self) -> float:
@@ -37,6 +40,13 @@ class SystemStats:
         Memory in use, as a percentage.
         """
         return 100 * self.memory_used / self.memory_total
+
+    @property
+    def load_average(self) -> float:
+        """
+        The one-minute load average.
+        """
+        return self.load_averages[0]
 
     @property
     def disk_percent(self) -> float:
@@ -55,12 +65,13 @@ def read_system_stats() -> SystemStats:
     return SystemStats(
         hostname=socket.gethostname().split(".")[0],
         ip_address=primary_ip_address(),
-        load_average=os.getloadavg()[0],
+        load_averages=os.getloadavg(),
         temperature=cpu_temperature(),
         memory_used=memory.total - memory.available,
         memory_total=memory.total,
         disk_used=disk.used,
         disk_total=disk.total,
+        uptime=time.time() - psutil.boot_time(),
     )
 
 

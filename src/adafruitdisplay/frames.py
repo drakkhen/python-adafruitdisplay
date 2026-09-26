@@ -4,13 +4,14 @@ Frames: 1-bit images sized to the display, and text drawing helpers.
 
 from __future__ import annotations
 
+from functools import cache
 from importlib.resources import files
 from io import BytesIO
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .stats import SystemStats, read_system_stats
+from .stats import SystemStats
 
 if TYPE_CHECKING:
     from .display import Display
@@ -24,16 +25,18 @@ SILKSCREEN_BOLD = "slkscrb.ttf"
 # Silkscreen's glyphs sit two pixels below the top of their em box.
 _TOP_PADDING = -2
 
-MIB = 1024 * 1024
-GIB = 1024 * MIB
 
-
+@cache
 def load_font(name: str = SILKSCREEN, size: int = 8) -> ImageFont.FreeTypeFont:
     """
-    Load one of the bundled fonts at ``size`` pixels.
+    Load a bundled font by file name, or any TrueType font by path.
 
-    Silkscreen is a pixel font, so multiples of 8 draw crisply.
+    ``name`` is a bundled font such as :data:`SILKSCREEN` unless it
+    contains a slash. Silkscreen is a pixel font, so multiples of 8
+    draw crisply. Fonts are cached, so loading one again is cheap.
     """
+    if "/" in name:
+        return ImageFont.truetype(name, size)
     data = files("adafruitdisplay").joinpath("fonts", name).read_bytes()
     return ImageFont.truetype(BytesIO(data), size)
 
@@ -72,6 +75,7 @@ class TextFrame(Frame):
         Switch to a bundled font. Line spacing follows the size.
         """
         self.font = load_font(name, size)
+        self.font_name = name
         self.font_size = size
 
     def clear(self, fill: int = OFF) -> None:
@@ -81,17 +85,17 @@ class TextFrame(Frame):
         super().clear(fill)
         self.lines = []
 
-    def fits(self, text: str) -> bool:
+    def fits(self, text: str, font: ImageFont.FreeTypeFont | None = None) -> bool:
         """
-        Whether ``text`` fits across the frame in the current font.
+        Whether ``text`` fits across the frame in ``font``.
         """
-        return self.draw.textlength(text, font=self.font) <= self.width
+        return self.draw.textlength(text, font=font or self.font) <= self.width
 
-    def fit(self, text: str) -> str:
+    def fit(self, text: str, font: ImageFont.FreeTypeFont | None = None) -> str:
         """
         Trim ``text`` from the end until it fits across the frame.
         """
-        while text and not self.fits(text):
+        while text and not self.fits(text, font):
             text = text[:-1]
         return text
 
@@ -122,31 +126,42 @@ class TextFrame(Frame):
         y = (self.height - (bottom - top)) / 2 - top
         self.draw.text((x, y), text, font=self.font, fill=fill)
 
-
-class SystemStatusFrame(TextFrame):
-    """
-    Four lines about the host: address, load, memory and disk.
-    """
-
-    def update(self, stats: SystemStats | None = None) -> None:
+    def center_lines(
+        self,
+        lines: list[str],
+        fill: int = ON,
+        spacing: int = 2,
+        min_size: int | None = None,
+    ) -> None:
         """
-        Redraw from ``stats``, or from a fresh reading of this machine.
-        """
-        if stats is None:
-            stats = read_system_stats()
-        temperature = "" if stats.temperature is None else f" ({stats.temperature:.1f}°C)"
+        Draw lines of text as one block, centred both ways.
 
-        self.clear()
-        self.add_line(address_line(self, stats))
-        self.add_line(f"CPU Load: {stats.load_average:.2f}{temperature}")
-        self.add_line(
-            f"Mem: {stats.memory_used // MIB}/{stats.memory_total // MIB}MB "
-            f"{stats.memory_percent:.0f}%"
+        The block is measured from the glyphs themselves, so fonts with
+        tall capitals aren't clipped at the top. With ``min_size``, the
+        font steps down from the frame's size until the block fits;
+        lines that still don't fit are trimmed.
+        """
+        font = self.font
+        for size in range(self.font_size, (min_size or self.font_size) - 1, -1):
+            font = load_font(self.font_name, size)
+            if self._block_fits(lines, font, spacing):
+                break
+        text = "\n".join(self.fit(line, font) for line in lines)
+        left, top, right, bottom = self.draw.multiline_textbbox(
+            (0, 0), text, font=font, spacing=spacing, align="center"
         )
-        self.add_line(
-            f"Disk: {stats.disk_used / GIB:.0f}/{stats.disk_total / GIB:.0f}GB "
-            f"{stats.disk_percent:.0f}%"
+        x = (self.width - (right - left)) / 2 - left
+        y = (self.height - (bottom - top)) / 2 - top
+        self.draw.multiline_text(
+            (x, y), text, font=font, fill=fill, spacing=spacing, align="center"
         )
+        self.lines = text.split("\n")
+
+    def _block_fits(self, lines: list[str], font: ImageFont.FreeTypeFont, spacing: int) -> bool:
+        left, top, right, bottom = self.draw.multiline_textbbox(
+            (0, 0), "\n".join(lines), font=font, spacing=spacing, align="center"
+        )
+        return right - left <= self.width and bottom - top <= self.height
 
 
 def address_line(frame: TextFrame, stats: SystemStats) -> str:

@@ -15,19 +15,42 @@ pip install 'adafruitdisplay[pi] @ git+https://github.com/drakkhen/python-adafru
 Leave out `[pi]` on a computer without the display; everything except
 `Display.open()` still works.
 
-## Show system status
+## Show screens
+
+`oled-display` shows each screen for five seconds, in step with the clock so
+several displays change together. While switched off it runs a screen saver
+that moves the hostname around, so no pixel stays lit for long.
 
 ```sh
-adafruitdisplay-stats                        # address, load, memory, disk
-adafruitdisplay-stats --preview stats.png    # render one frame to a file
+oled-display                                  # hostname/IP, then load/memory/disk/uptime
+oled-display --control 0.0.0.0:5001 --on      # switch with GET /on and /off
+oled-display --rotate 180 --contrast 128      # upside-down mount, dimmer
+oled-display --preview screens/               # save each screen as a PNG and exit
 ```
+
+`--title-font` and `--text-font` take a path to any TrueType font. Other
+packages add screens through the `adafruitdisplay.screens` entry point group;
+[pihole-status][pihole] adds a `pihole` screen, for example.
+
+The `/`, `/on` and `/off` endpoints answer `{"status": "on"}` or
+`{"status": "off"}`, which suits the homebridge-simple-http plugin.
+
+## Dimming
+
+An SSD1306 can lose its settings to a corrupted I2C transfer. The whole screen
+goes over in one transfer, and if the byte that marks it as pixel data is
+corrupted, the controller reads the pixels as commands. A mostly black screen
+is mostly `0x00`, so a stray "set contrast" leaves the display dim until the
+controller is set up again, which is why a reboot seemed to fix it. `Display`
+now sends its settings again every five minutes and after any failed write,
+without switching the display off.
 
 ## Library
 
 ```python
 from adafruitdisplay import ON, Display, TextFrame
 
-with Display.open() as display:
+with Display.open(rotate=180) as display:
     frame = TextFrame(display)
     frame.add_line("Four lines of")
     frame.add_line("eight-pixel text")
@@ -61,3 +84,4 @@ pytest
 ```
 
 [pioled]: https://www.adafruit.com/product/3527
+[pihole]: https://github.com/drakkhen/pihole-status

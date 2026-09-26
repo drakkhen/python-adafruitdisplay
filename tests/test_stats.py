@@ -18,13 +18,15 @@ def test_reads_this_machine() -> None:
     assert 0 < reading.memory_used <= reading.memory_total
     assert 0 < reading.disk_used <= reading.disk_total
     assert reading.load_average >= 0
+    assert reading.uptime > 0
 
 
-def test_percentages() -> None:
-    reading = SystemStats("h", None, 0.0, None, 1, 4, 3, 4)
+def test_derived_values() -> None:
+    reading = SystemStats("h", None, (0.5, 0.25, 0.125), None, 1, 4, 3, 4, 60.0)
 
     assert reading.memory_percent == 25
     assert reading.disk_percent == 75
+    assert reading.load_average == 0.5
 
 
 def test_temperature_prefers_the_soc_sensor(monkeypatch: pytest.MonkeyPatch) -> None:
