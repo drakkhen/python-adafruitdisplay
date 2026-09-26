@@ -99,3 +99,11 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# macOS resource forks
+._*
+.DS_Store
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
