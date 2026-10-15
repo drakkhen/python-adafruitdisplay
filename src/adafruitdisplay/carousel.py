@@ -122,8 +122,8 @@ class ControlServer:
     Switch the carousel on and off over HTTP.
 
     ``GET /`` reports ``{"status": "on"}`` or ``{"status": "off"}``,
-    and ``GET /on`` and ``GET /off`` switch it, as the
-    homebridge-simple-http plugin expects.
+    and ``GET /on`` and ``GET /off`` switch it, which suits the
+    homebridge-http-switch plugin.
     """
 
     def __init__(self, carousel: Carousel, host: str = "127.0.0.1", port: int = 5001) -> None:

@@ -33,7 +33,8 @@ packages add screens through the `adafruitdisplay.screens` entry point group;
 [pihole-status][pihole] adds a `pihole` screen, for example.
 
 The `/`, `/on` and `/off` endpoints answer `{"status": "on"}` or
-`{"status": "off"}`, which suits the homebridge-simple-http plugin.
+`{"status": "off"}`. For the homebridge-http-switch plugin, point `onUrl`,
+`offUrl` and `statusUrl` at them and set `statusPattern` to `"status": *"on"`.
 
 ## Dimming
 
